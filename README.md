@@ -23,14 +23,18 @@ and which lesson to join next — without opening two different websites.
 
 ## Status
 
-Early development. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design
-and [docs/ROADMAP.md](docs/ROADMAP.md) for milestone progress.
+Usable for Google Classroom homework today; the timetable arrives with nz.ua in M4.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and
+[docs/ROADMAP.md](docs/ROADMAP.md) for milestone detail.
+
+To connect an account, follow [docs/GOOGLE_SETUP.md](docs/GOOGLE_SETUP.md) first —
+it needs a Google OAuth client, which takes about ten minutes to create.
 
 | Milestone | Scope | Status |
 |---|---|---|
-| M1 | Widget window on screen, tray, persisted position | in progress |
-| M2 | Google Classroom end-to-end (OAuth, homework, cache) | planned |
-| M3 | 18:00 schedule flip + alert engine | planned |
+| M1 | Widget window on screen, tray, persisted position | done |
+| M2 | Google Classroom end-to-end (OAuth, homework, cache) | done |
+| M3 | 18:00 schedule flip + alert engine | done |
 | M4 | nz.ua timetable and homework | planned |
 | M5 | Cross-source merge, Meet link resolver, multi-profile | planned |
 | M6 | Full settings, i18n (uk/en) | planned |
@@ -45,6 +49,12 @@ npm test            # Vitest suite
 npm run typecheck   # tsc --noEmit across all three build graphs
 npm run lint
 ```
+
+> **Note for Electron-based IDEs:** VS Code, Antigravity and similar set
+> `ELECTRON_RUN_AS_NODE=1` in their integrated terminals, which makes `npm run dev`
+> start plain Node instead of Electron and fail with
+> `does not provide an export named 'BrowserWindow'`. Run
+> `unset ELECTRON_RUN_AS_NODE` first, or use a normal terminal.
 
 ### Linux display server note
 
