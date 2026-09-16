@@ -1,4 +1,4 @@
-import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import type { CivilDate, CivilTime, Instant } from '../domain/models';
 
 /**
@@ -81,6 +81,3 @@ export function isTimeWithin(time: CivilTime, start: CivilTime, end: CivilTime):
 export function formatIn(instant: Date, tz: string, pattern: string): string {
   return formatInTimeZone(instant, tz, pattern);
 }
-
-/** Exposed for the rare case a caller genuinely needs a zoned Date object. */
-export { toZonedTime };

@@ -20,7 +20,13 @@ export default defineConfig({
       alias: { '@shared': shared },
     },
     build: {
-      rollupOptions: { input: { index: resolve('src/preload/index.ts') } },
+      rollupOptions: {
+        input: { index: resolve('src/preload/index.ts') },
+        // A sandboxed preload must be CommonJS — Electron does not load an ES
+        // module preload when sandbox is enabled, and the bridge silently never
+        // runs, leaving window.api undefined.
+        output: { format: 'cjs', entryFileNames: '[name].cjs' },
+      },
     },
   },
   renderer: {

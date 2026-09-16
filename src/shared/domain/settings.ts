@@ -3,6 +3,15 @@ import type { CivilTime } from './models';
 
 export const SETTINGS_SCHEMA_VERSION = 1;
 
+/** Structural partial used by settings.patch(). Arrays replace wholesale. */
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends readonly unknown[]
+    ? T[K]
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K];
+};
+
 /** The school's timezone. All "which day" and "is it 18:00 yet" reasoning uses this. */
 export const DEFAULT_SCHOOL_TIMEZONE = 'Europe/Kyiv';
 

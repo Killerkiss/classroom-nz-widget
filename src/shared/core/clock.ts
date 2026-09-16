@@ -11,6 +11,9 @@ export interface Clock {
 }
 
 export const systemClock: Clock = {
+  // The single sanctioned reading of ambient time in the whole pure core. Every
+  // other module receives a Clock, which is what makes the scheduling testable.
+  // eslint-disable-next-line no-restricted-syntax
   now: () => new Date(),
 };
 
