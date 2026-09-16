@@ -1,0 +1,21 @@
+node_modules/
+dist/
+out/
+release/
+*.log
+npm-debug.log*
+.DS_Store
+coverage/
+.vite/
+.idea/
+.vscode/
+*.local
+
+# Never commit these — see docs/ARCHITECTURE.md "Secrets"
+.env
+.env.*
+!.env.example
+secrets.json
+*.pem
+google-credentials*.json
+src/main/providers/nz/fixtures/**/*.raw.json
