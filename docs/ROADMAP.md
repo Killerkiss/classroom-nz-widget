@@ -63,3 +63,4 @@ states.
 electron-builder targets (AppImage + deb, dmg arm64 and x64), CI matrix, release
 workflow, Playwright smokes, diagnostics export, and a README covering the macOS
 Gatekeeper quarantine step and the AppImage `libfuse2` requirement.
+
