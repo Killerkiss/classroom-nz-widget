@@ -19,3 +19,6 @@ secrets.json
 *.pem
 google-credentials*.json
 src/main/providers/nz/fixtures/**/*.raw.json
+
+# TypeScript incremental build artifacts
+*.tsbuildinfo

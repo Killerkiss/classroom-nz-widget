@@ -1,0 +1,47 @@
+:root {
+  --bg: rgba(18, 20, 28, 0.82);
+  --bg-solid: #12141c;
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-hover: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #e8eaf2;
+  --text-dim: #9aa0b4;
+  --text-faint: #6b7186;
+  --accent: #6ea8ff;
+  --danger: #ff6b6b;
+  --warning: #ffb454;
+  --success: #5ddba4;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --gap: 10px;
+
+  color-scheme: dark;
+  font-family: 'Inter', 'Ubuntu', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+
+:root[data-theme='light'] {
+  --bg: rgba(250, 250, 253, 0.88);
+  --bg-solid: #fafafd;
+  --panel: rgba(0, 0, 0, 0.035);
+  --panel-hover: rgba(0, 0, 0, 0.07);
+  --border: rgba(0, 0, 0, 0.1);
+  --text: #171a22;
+  --text-dim: #5b6175;
+  --text-faint: #878da0;
+  --accent: #2d6fe0;
+  --danger: #d93b3b;
+  --warning: #b8720e;
+  --success: #1c8f60;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
