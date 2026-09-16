@@ -99,6 +99,7 @@ export function registerIpc(ctx: AppContext): void {
   });
 
   handle('auth', 'addGoogleAccount', () => ctx.addGoogleAccount());
+  handle('auth', 'addNzAccount', () => ctx.addNzAccount());
   handle('auth', 'signOut', async (rawId: unknown) => {
     await ctx.signOut(asProfileId(z.string().min(1).parse(rawId)));
   });
@@ -129,6 +130,13 @@ export function registerIpc(ctx: AppContext): void {
     electron: process.versions.electron,
     platform: `${process.platform} ${process.arch}`,
   }));
+
+  handle('system', 'runNzDiscovery', (rawProfileId: unknown, rawSeconds: unknown) =>
+    ctx.runNzDiscovery(
+      asProfileId(z.string().min(1).parse(rawProfileId)),
+      z.number().int().min(10).max(300).parse(rawSeconds),
+    ),
+  );
 
   handle('system', 'getDiagnostics', (): DiagnosticsReport => ({
     app: app.getVersion(),

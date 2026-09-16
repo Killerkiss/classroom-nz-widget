@@ -4,8 +4,9 @@ import { app } from 'electron';
 import type { AlertState } from '@shared/core/alerts/types';
 import type { Announcement, Assignment, Course, Instant, Lesson } from '@shared/domain/models';
 import type { ProviderHealth } from '@shared/ipc/contract';
+import type { MergeOverride, MergeSuggestion } from '@shared/core/merge/mergeAssignments';
 
-export const CACHE_SCHEMA_VERSION = 1;
+export const CACHE_SCHEMA_VERSION = 2;
 
 export interface CachedData {
   schemaVersion: number;
@@ -16,8 +17,15 @@ export interface CachedData {
   announcements: Announcement[];
   health: ProviderHealth[];
   alertStates: Record<string, AlertState>;
-  /** Locally marked done, keyed by assignment id. Survives a cache rebuild is not required. */
+  /** Locally marked done, keyed by assignment id. */
   locallyDone: Record<string, boolean>;
+  /**
+   * The user's confirmed decisions about whether two assignments are the same
+   * homework. Asked once, then honoured forever.
+   */
+  mergeOverrides: MergeOverride[];
+  /** Possible duplicates awaiting a decision. Recomputed on every sync. */
+  mergeSuggestions: MergeSuggestion[];
 }
 
 function empty(): CachedData {
@@ -31,6 +39,8 @@ function empty(): CachedData {
     health: [],
     alertStates: {},
     locallyDone: {},
+    mergeOverrides: [],
+    mergeSuggestions: [],
   };
 }
 
@@ -74,6 +84,17 @@ export class CacheStore {
     for (const s of states) next[s.assignmentId] = s;
     for (const id of clearedIds) delete next[id];
     this.update({ alertStates: next });
+  }
+
+  getMergeOverrides(): MergeOverride[] {
+    return this.data.mergeOverrides;
+  }
+
+  /** Record a user's decision, replacing any earlier ruling on the same pair. */
+  putMergeOverride(override: MergeOverride): void {
+    const key = [override.a, override.b].sort().join('|');
+    const rest = this.data.mergeOverrides.filter((o) => [o.a, o.b].sort().join('|') !== key);
+    this.update({ mergeOverrides: [...rest, override] });
   }
 
   setLocallyDone(assignmentId: string, done: boolean): void {

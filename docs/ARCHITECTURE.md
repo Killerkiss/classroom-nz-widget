@@ -8,8 +8,10 @@ Schedule and homework live in two systems that don't talk to each other:
   timetable**. There are no periods or times in the API, and `Course` has no Meet
   link field.
 - **nz.ua** has the bell schedule, homework and grades — but **no public API**.
-  `api-mobile.nz.ua` resolves and is what the official mobile app uses, but it sits
-  behind a WAF and is undocumented.
+  `api-mobile.nz.ua` resolves and is what the official mobile app uses, but it is
+  undocumented and sits behind **Cloudflare's interactive challenge**
+  (`cf-mitigated: challenge`, verified 2026-09-16). No HTTP client can pass that;
+  only a real browser can. See [NZ_INTEGRATION.md](NZ_INTEGRATION.md).
 
 So: nz.ua is the source of record for *when*, Google Classroom for *what's due and
 whether it's done*, and Meet links come from whichever source actually has them.
@@ -98,18 +100,23 @@ subject naming across two systems *will* disagree and that shouldn't need a rele
 
 nz.ua is the unbounded risk in this project. Five layers contain it:
 
-1. **Transport abstraction.** `NzTransport` has three implementations: `HttpTransport`
-   (primary — direct requests from the main process), `BrowserSessionTransport`
-   (fallback — hidden `BrowserWindow` with a real login, requests made in-page so the
-   WAF sees a genuine browser), and `FixtureTransport` (recorded responses, for dev
-   and CI). On repeated 403/challenge responses the provider flips to the browser
-   transport and remembers that choice; it never flaps back automatically.
+1. **Transport abstraction.** `NzTransport` has two live implementations:
+   `BrowserSessionTransport` (**primary** — a real `BrowserWindow` with a persistent
+   session partition, requests issued in-page so they carry the Cloudflare clearance
+   cookie and a genuine fingerprint) and `FixtureTransport` (recorded responses, for
+   dev and CI).
+
+   > This inverts the original plan, which had a direct HTTP client as primary. The
+   > `cf-mitigated: challenge` evidence says a plain HTTP transport cannot work at
+   > all, so there is nothing for it to be a fallback *to*.
 2. **Every response goes through zod.** Unknown fields pass through; a *renamed*
    field degrades one capability rather than crashing. Parse failures log a redacted
    shape summary (key names and types only, never values).
-3. **Capability probe** on startup records which endpoints actually work, shown as a
-   live table in Settings → Diagnostics. When nz.ua changes, this says exactly what
-   died.
+3. **Capabilities follow what has actually been discovered.** nz.ua's endpoints
+   cannot be inspected from outside a logged-in browser, so `endpoints.ts` starts
+   empty and is filled from a discovery run on the user's own machine. While
+   unconfigured, `capabilities()` is empty — so the UI says "no timetable source"
+   rather than rendering an empty timetable that looks like "no lessons today".
 4. **Fixtures** for offline dev and CI. CI never hits nz.ua — besides being rude,
    GitHub Actions runners are datacenter IPs, which is precisely what gets a 403.
 5. **Rate limiting is non-bypassable**: max 1 request / 5s, ~60/hour, exponential

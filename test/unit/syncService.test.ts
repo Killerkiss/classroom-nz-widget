@@ -23,6 +23,8 @@ function makeCache() {
     health: [],
     alertStates: {},
     locallyDone: {},
+    mergeOverrides: [],
+    mergeSuggestions: [],
   };
   return {
     read: () => data,
@@ -33,7 +35,9 @@ function makeCache() {
     getAlertStates: () => data.alertStates,
     putAlertStates: () => {},
     setLocallyDone: () => {},
-    schemaVersion: 1,
+    getMergeOverrides: () => data.mergeOverrides,
+    putMergeOverride: () => {},
+    schemaVersion: 2,
   } as unknown as ConstructorParameters<typeof SyncService>[1];
 }
 

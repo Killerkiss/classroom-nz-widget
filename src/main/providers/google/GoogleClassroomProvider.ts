@@ -1,11 +1,14 @@
 import type { ProfileId } from '@shared/domain/ids';
 import type { Announcement, Assignment, Course, Lesson } from '@shared/domain/models';
+import type { ConferenceSlot } from '@shared/core/meet/conferenceSlots';
+import { toConferenceSlot } from '@shared/core/meet/conferenceSlots';
 import type { AuthStatus, Capability, ProviderHealth } from '@shared/ipc/contract';
 import { ProviderError } from '@shared/domain/errors';
 import { log } from '@main/logging';
 import type { SecretStore } from '@main/storage/secrets/SecretStore';
 import type { SettingsStore } from '@main/storage/settingsStore';
 import type { DateRange, FetchContext, SchoolDataProvider } from '../SchoolDataProvider';
+import { CalendarClient } from './calendarClient';
 import { ClassroomClient } from './classroomClient';
 import { mapAnnouncement, mapAssignment, mapCourse } from './mappers';
 import type { OAuthClientConfig, TokenSet } from './oauth';
@@ -23,7 +26,12 @@ const CAPABILITIES: ReadonlySet<Capability> = new Set<Capability>([
   'submissions',
   'announcements',
   'attachments',
+  // Not from Classroom itself — Course has no Meet field — but from Calendar events.
+  'meetLinks',
 ]);
+
+/** Guard against an account with dozens of subscribed calendars. */
+const MAX_CALENDARS = 12;
 
 /** Refresh a little early so a request never races the expiry. */
 const EXPIRY_MARGIN_MS = 60_000;
@@ -34,6 +42,7 @@ export class GoogleClassroomProvider implements SchoolDataProvider {
   private config: OAuthClientConfig | null = null;
   private currentHealth: ProviderHealth;
   private readonly client: ClassroomClient;
+  private readonly calendar: CalendarClient;
 
   constructor(
     readonly profileId: ProfileId,
@@ -49,6 +58,7 @@ export class GoogleClassroomProvider implements SchoolDataProvider {
       capabilities: {},
     };
     this.client = new ClassroomClient(() => this.accessToken());
+    this.calendar = new CalendarClient(() => this.accessToken());
   }
 
   capabilities(): ReadonlySet<Capability> {
@@ -156,6 +166,39 @@ export class GoogleClassroomProvider implements SchoolDataProvider {
       out.push(...outcome.value.map((a) => mapAnnouncement(a, this.profileId, fetchedAt)));
     });
     return out;
+  }
+
+  /**
+   * Conferencing links come from Calendar, because Classroom's Course resource has
+   * no Meet link field at all. Every calendar is fetched independently so one
+   * inaccessible calendar cannot cost us the others' links.
+   */
+  async listConferenceSlots(range: DateRange, ctx: FetchContext): Promise<ConferenceSlot[]> {
+    const aliases = this.settings.get().subjectAliases;
+    const timeMin = new Date(`${range.from}T00:00:00Z`).toISOString();
+    const timeMax = new Date(`${range.to}T23:59:59Z`).toISOString();
+
+    const calendars = (await this.calendar.listCalendars(ctx.signal)).slice(0, MAX_CALENDARS);
+
+    const settled = await Promise.allSettled(
+      calendars.map((c) => this.calendar.listEvents(c.id, timeMin, timeMax, ctx.signal)),
+    );
+
+    const slots: ConferenceSlot[] = [];
+    settled.forEach((outcome, i) => {
+      if (outcome.status === 'rejected') {
+        log.warn(
+          `[google-classroom] calendar "${calendars[i]?.summary ?? calendars[i]?.id}" failed: ${String(outcome.reason)}`,
+        );
+        return;
+      }
+      for (const event of outcome.value) {
+        const slot = toConferenceSlot(event, aliases);
+        if (slot) slots.push(slot);
+      }
+    });
+
+    return slots;
   }
 
   private clientConfig(): OAuthClientConfig {

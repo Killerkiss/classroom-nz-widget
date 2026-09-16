@@ -1,5 +1,6 @@
 import type { NativeId, ProfileId, SourceId } from '@shared/domain/ids';
 import type { Announcement, Assignment, Course, Lesson } from '@shared/domain/models';
+import type { ConferenceSlot } from '@shared/core/meet/conferenceSlots';
 import type { AuthStatus, Capability, ProviderHealth } from '@shared/ipc/contract';
 import { classifyError } from '@shared/domain/errors';
 import { log } from '@main/logging';
@@ -68,6 +69,11 @@ export class SafeProvider implements SchoolDataProvider {
 
   listAnnouncements(range: DateRange, ctx: FetchContext): Promise<Announcement[]> {
     return this.guard('announcements', () => this.inner.listAnnouncements(range, ctx));
+  }
+
+  listConferenceSlots(range: DateRange, ctx: FetchContext): Promise<ConferenceSlot[]> {
+    if (!this.inner.listConferenceSlots) return Promise.resolve([]);
+    return this.guard('meetLinks', () => this.inner.listConferenceSlots!(range, ctx));
   }
 
   markDone(assignmentId: NativeId): Promise<void> {

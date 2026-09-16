@@ -1,6 +1,10 @@
 import type { Announcement, Assignment, Course, Lesson } from '@shared/domain/models';
 import type { ProviderHealth, Snapshot } from '@shared/ipc/contract';
 import { selectScheduleDay } from '@shared/core/scheduleView';
+import { mergeAssignments } from '@shared/core/merge/mergeAssignments';
+import type { ConferenceSlot } from '@shared/core/meet/conferenceSlots';
+import { matchConferenceSlot } from '@shared/core/meet/conferenceSlots';
+import { resolveMeetLink } from '@shared/core/meet/resolveMeetLink';
 import { addCivilDays, civilDateIn } from '@shared/core/timezone';
 import type { Clock } from '@shared/core/clock';
 import { log } from '@main/logging';
@@ -75,15 +79,18 @@ export class SyncService {
         assignments: await p.listAssignments(range, ctx),
         lessons: await p.listLessons(range, ctx),
         announcements: await p.listAnnouncements(range, ctx),
+        conferenceSlots: (await p.listConferenceSlots?.(range, ctx)) ?? [],
       })),
     );
 
     if (controller.signal.aborted) return;
 
     const courses: Course[] = [];
-    const assignments: Assignment[] = [];
+    // Kept per-provider: the merge needs to know which source each group came from.
+    const assignmentGroups: Assignment[][] = [];
     const lessons: Lesson[] = [];
     const announcements: Announcement[] = [];
+    const conferenceSlots: ConferenceSlot[] = [];
     const health: ProviderHealth[] = [];
 
     settled.forEach((outcome, i) => {
@@ -96,25 +103,65 @@ export class SyncService {
         return;
       }
       courses.push(...outcome.value.courses);
-      assignments.push(...outcome.value.assignments);
+      assignmentGroups.push(outcome.value.assignments);
       lessons.push(...outcome.value.lessons);
       announcements.push(...outcome.value.announcements);
+      conferenceSlots.push(...outcome.value.conferenceSlots);
       health.push(outcome.value.provider.health());
     });
+
+    const { merged, suggestions } = mergeAssignments(
+      assignmentGroups,
+      settings.schedule.timezone,
+      this.cache.getMergeOverrides(),
+    );
+
+    const enrichedLessons = this.attachMeetLinks(lessons, conferenceSlots, courses, settings.meetLinkOverrides);
 
     // Partial results are kept deliberately: half a schedule beats none, and the
     // health records tell the UI which half is missing.
     this.cache.update({
       updatedAt: now.toISOString(),
       courses,
-      assignments,
-      lessons,
+      assignments: merged,
+      lessons: enrichedLessons,
       announcements,
       health,
+      mergeSuggestions: suggestions,
     });
 
     this.inFlight = null;
     this.onSnapshot(this.snapshot());
+  }
+
+  /**
+   * Put a usable Meet link on each lesson.
+   *
+   * Classroom has no Meet link on a course, so this is the only way a lesson gets a
+   * clickable button: a manual override, a calendar event covering that time, or a
+   * link the teacher left in the nz.ua lesson.
+   */
+  private attachMeetLinks(
+    lessons: readonly Lesson[],
+    slots: readonly ConferenceSlot[],
+    courses: readonly Course[],
+    overrides: Record<string, string>,
+  ): Lesson[] {
+    if (lessons.length === 0) return [];
+    const courseById = new Map(courses.map((c) => [c.id, c]));
+
+    return lessons.map((lesson) => {
+      const calendarLink = matchConferenceSlot(lesson, slots)?.url;
+      const resolved = resolveMeetLink(lesson, {
+        calendarLink,
+        nzLink: lesson.meetLink ?? lesson.note,
+        overrides,
+        course: lesson.courseId ? courseById.get(lesson.courseId) : undefined,
+      });
+
+      if (!resolved) return { ...lesson, meetLink: undefined, meetLinkSource: undefined };
+      return { ...lesson, meetLink: resolved.url, meetLinkSource: resolved.source };
+    });
   }
 
   private isStale(updatedAt: string | null, now: Date): boolean {
