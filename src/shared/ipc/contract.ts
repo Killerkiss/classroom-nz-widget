@@ -90,6 +90,8 @@ export interface IpcApi {
   auth: {
     status(): Promise<ProfileSummary[]>;
     addGoogleAccount(): Promise<ProfileSummary>;
+    /** Opens a real nz.ua login window; no password ever passes through this app. */
+    addNzAccount(): Promise<ProfileSummary>;
     signOut(profileId: ProfileId): Promise<void>;
     secretBackend(): Promise<SecretBackendInfo>;
   };
@@ -103,6 +105,12 @@ export interface IpcApi {
     openExternal(url: string): Promise<void>;
     getVersion(): Promise<{ app: string; electron: string; platform: string }>;
     getDiagnostics(): Promise<DiagnosticsReport>;
+    /**
+     * Records which data endpoints the real nz.ua site calls, so the integration
+     * can be built against observed paths instead of guesses. Returns a redacted
+     * report: paths and parameter names only.
+     */
+    runNzDiscovery(profileId: ProfileId, seconds: number): Promise<string>;
   };
   /** Subscribe to pushes from main. Returns an unsubscribe function. */
   on<E extends MainEvent['type']>(
@@ -132,9 +140,9 @@ export const IPC_METHODS = {
   data: ['getSnapshot', 'refresh', 'getAssignment'],
   alerts: ['snooze', 'dismiss', 'markDone'],
   settings: ['get', 'patch', 'reset'],
-  auth: ['status', 'addGoogleAccount', 'signOut', 'secretBackend'],
+  auth: ['status', 'addGoogleAccount', 'addNzAccount', 'signOut', 'secretBackend'],
   window: ['openSettings', 'hideWidget', 'setClickThrough'],
-  system: ['openExternal', 'getVersion', 'getDiagnostics'],
+  system: ['openExternal', 'getVersion', 'getDiagnostics', 'runNzDiscovery'],
 } as const satisfies { [K in IpcNamespace]: ReadonlyArray<keyof IpcApi[K]> };
 
 /** Compile-time guard: every method in every namespace must appear above. */

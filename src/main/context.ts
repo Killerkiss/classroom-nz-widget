@@ -28,5 +28,7 @@ export interface AppContext {
   onSettingsChanged(settings: AppSettings): void;
 
   addGoogleAccount(): Promise<ProfileSummary>;
+  addNzAccount(): Promise<ProfileSummary>;
+  runNzDiscovery(profileId: ProfileId, seconds: number): Promise<string>;
   signOut(profileId: ProfileId): Promise<void>;
 }

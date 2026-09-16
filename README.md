@@ -35,8 +35,8 @@ it needs a Google OAuth client, which takes about ten minutes to create.
 | M1 | Widget window on screen, tray, persisted position | done |
 | M2 | Google Classroom end-to-end (OAuth, homework, cache) | done |
 | M3 | 18:00 schedule flip + alert engine | done |
-| M4 | nz.ua timetable and homework | planned |
-| M5 | Cross-source merge, Meet link resolver, multi-profile | planned |
+| M4 | nz.ua timetable and homework | transport done; endpoints need discovery |
+| M5 | Cross-source merge, Meet link resolver, multi-profile | done |
 | M6 | Full settings, i18n (uk/en) | planned |
 | M7 | Packaging, CI, release | planned |
 
@@ -78,9 +78,12 @@ This is a personal tool. All data stays on the machine it runs on.
 - Nothing is sent anywhere except to Google's and nz.ua's own APIs.
 - No telemetry, no analytics, no crash reporting.
 
-nz.ua has no public API. The nz.ua integration talks to the same endpoints the
-official mobile app uses, on behalf of an account you own and log into yourself.
-It may break without warning if nz.ua changes.
+nz.ua has no public API, and it sits behind Cloudflare's interactive challenge, so
+the integration drives a real browser window rather than an HTTP client. You log in
+on the genuine nz.ua page — **the password never passes through this app** — and only
+the session is kept. See [docs/NZ_INTEGRATION.md](docs/NZ_INTEGRATION.md). It may
+break without warning if nz.ua changes; when it does, the rest of the app keeps
+working and Settings says what broke.
 
 ## Licence
 

@@ -15,6 +15,8 @@ import { envFileLocation, loadEnvFile } from './env';
 import { broadcast, registerIpc } from './ipc/register';
 import { log } from './logging';
 import { buildProviders } from './providers/registry';
+import { EndpointRecorder } from './providers/nz/discovery';
+import { BrowserSessionTransport } from './providers/nz/transport/BrowserSessionTransport';
 import type { SchoolDataProvider } from './providers/SchoolDataProvider';
 import { CacheStore } from './storage/cacheStore';
 import { SafeStorageSecretStore } from './storage/secrets/SafeStorageSecretStore';
@@ -51,8 +53,17 @@ app.whenReady().then(() => {
   log.info(`Secret storage backend: ${secrets.info.backend} (encrypted: ${secrets.info.isEncryptedAtRest})`);
   if (secrets.info.warning) log.warn(secrets.info.warning);
 
+  const showLoginWindow = (win: BrowserWindow) => {
+    // The widget is always-on-top and would otherwise sit over the login page.
+    widget?.setAlwaysOnTop(false, 'floating');
+    win.show();
+    win.focus();
+    win.once('hide', () => widget?.setAlwaysOnTop(true, 'floating'));
+    win.once('closed', () => widget?.setAlwaysOnTop(true, 'floating'));
+  };
+
   const refreshProviders = () => {
-    providers = buildProviders(settings, secrets);
+    providers = buildProviders(settings, secrets, showLoginWindow);
   };
   refreshProviders();
 
@@ -128,6 +139,61 @@ app.whenReady().then(() => {
       void sync.refresh(true);
       return { id, source: 'google-classroom', displayName: provider.displayName, status: 'authenticated' };
     },
+    addNzAccount: async (): Promise<ProfileSummary> => {
+      const id = asProfileId(randomUUID());
+
+      settings.patch({
+        profiles: [
+          ...settings.get().profiles,
+          {
+            id,
+            source: 'nz',
+            displayName: 'nz.ua',
+            // Browser login by default: the password is typed at nz.ua and never
+            // reaches this app, so there is nothing here to store.
+            secretKeyRef: `nz:${id}:session`,
+            enabled: true,
+            nzAuthMode: 'browser',
+          },
+        ],
+      });
+      refreshProviders();
+
+      const transport = new BrowserSessionTransport(id, showLoginWindow);
+      try {
+        const state = await transport.promptLogin();
+        if (state !== 'ok') throw new Error('Вхід на nz.ua не завершено.');
+      } catch (err) {
+        await removeProfile(settings, secrets, id);
+        refreshProviders();
+        throw err;
+      } finally {
+        await transport.dispose();
+      }
+
+      void sync.refresh(true);
+      return { id, source: 'nz', displayName: 'nz.ua', status: 'authenticated' };
+    },
+
+    runNzDiscovery: async (profileId: ProfileId, seconds: number): Promise<string> => {
+      const transport = new BrowserSessionTransport(profileId, showLoginWindow);
+      try {
+        const state = await transport.ensureSession();
+        if (state === 'login_required') await transport.promptLogin();
+
+        const win = await transport.openForDiscovery();
+        const recorder = new EndpointRecorder(win);
+        recorder.start();
+        showLoginWindow(win);
+
+        // The user browses their schedule and homework while this records.
+        await new Promise((resolve) => setTimeout(resolve, Math.min(Math.max(seconds, 10), 300) * 1000));
+        return recorder.report();
+      } finally {
+        await transport.dispose();
+      }
+    },
+
     signOut: async (profileId: ProfileId) => {
       const provider = providers.find((p) => p.profileId === profileId);
       await provider?.signOut();

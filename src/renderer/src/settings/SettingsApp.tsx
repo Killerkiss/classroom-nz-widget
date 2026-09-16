@@ -7,6 +7,8 @@ export function SettingsApp() {
   const [accounts, setAccounts] = useState<ProfileSummary[]>([]);
   const [backend, setBackend] = useState<SecretBackendInfo | null>(null);
   const [busy, setBusy] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
+  const [report, setReport] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
@@ -23,16 +25,34 @@ export function SettingsApp() {
 
   if (!settings) return null;
 
-  const addGoogle = async () => {
+  const connect = async (add: () => Promise<unknown>) => {
     setBusy(true);
     setError(null);
     try {
-      await window.api.auth.addGoogleAccount();
+      await add();
       reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const addGoogle = () => connect(() => window.api.auth.addGoogleAccount());
+  const addNz = () => connect(() => window.api.auth.addNzAccount());
+
+  const nzProfile = settings.profiles.find((p) => p.source === 'nz');
+
+  const discover = async () => {
+    if (!nzProfile) return;
+    setDiscovering(true);
+    setError(null);
+    try {
+      setReport(await window.api.system.runNzDiscovery(nzProfile.id, 60));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDiscovering(false);
     }
   };
 
@@ -85,13 +105,43 @@ export function SettingsApp() {
         <div className="field">
           <span className="field__label">
             nz.ua
-            <span className="field__hint">Розклад уроків і журнал. Буде додано в наступному етапі.</span>
+            <span className="field__hint">
+              Розклад уроків і журнал. Відкриється справжня сторінка входу nz.ua — пароль
+              вводиться там і не зберігається в застосунку.
+            </span>
           </span>
-          <button type="button" className="btn btn--ghost" disabled>
-            Незабаром
+          <button type="button" className="btn" onClick={addNz} disabled={busy}>
+            {busy ? 'Вхід…' : 'Підключити'}
           </button>
         </div>
       </section>
+
+      {nzProfile && (
+        <section className="card">
+          <h2>Діагностика nz.ua</h2>
+
+          <div className="warn">
+            nz.ua не має публічного API, і його адреси недоступні ззовні через захист
+            Cloudflare. Щоб увімкнути розклад, потрібно один раз записати, які запити
+            робить сам сайт. Натисніть кнопку, відкрийте розклад і домашні завдання —
+            запис триватиме 60 секунд.
+          </div>
+
+          <div className="field">
+            <span className="field__label">
+              Знайти endpoints
+              <span className="field__hint">
+                У звіт потрапляють лише адреси та назви параметрів — жодних даних учня.
+              </span>
+            </span>
+            <button type="button" className="btn" onClick={discover} disabled={discovering}>
+              {discovering ? 'Запис…' : 'Почати запис'}
+            </button>
+          </div>
+
+          {report && <pre className="report">{report}</pre>}
+        </section>
+      )}
 
       <section className="card">
         <h2>Розклад</h2>

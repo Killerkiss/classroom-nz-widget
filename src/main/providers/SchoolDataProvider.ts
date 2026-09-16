@@ -1,6 +1,7 @@
 import type { NativeId, ProfileId, SourceId } from '@shared/domain/ids';
 import type { Announcement, Assignment, CivilDate, Course, Lesson } from '@shared/domain/models';
 import type { AuthStatus, Capability, ProviderHealth } from '@shared/ipc/contract';
+import type { ConferenceSlot } from '@shared/core/meet/conferenceSlots';
 
 export interface DateRange {
   /** Civil dates in the school timezone, inclusive. */
@@ -33,6 +34,12 @@ export interface SchoolDataProvider {
   listLessons(range: DateRange, ctx: FetchContext): Promise<Lesson[]>;
   listAssignments(range: DateRange, ctx: FetchContext): Promise<Assignment[]>;
   listAnnouncements(range: DateRange, ctx: FetchContext): Promise<Announcement[]>;
+
+  /**
+   * Conferencing links with the time window they belong to, used to put a Meet
+   * button on a lesson. Optional because not every source has them.
+   */
+  listConferenceSlots?(range: DateRange, ctx: FetchContext): Promise<ConferenceSlot[]>;
 
   /** Optional: Classroom can mark work done, nz.ua cannot. */
   markDone?(assignmentId: NativeId): Promise<void>;

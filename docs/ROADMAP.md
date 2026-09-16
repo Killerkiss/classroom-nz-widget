@@ -35,18 +35,32 @@ and confirm it does not re-fire.*
 
 ## M4 — nz.ua
 
-`NzTransport` and its three implementations, endpoints, zod schemas, capability
-probe, fixture recorder, circuit breaker and rate limiter, health UI and stale
-banner. The timetable panel becomes real.
+**Partly done.** The transport, request pacing, error classification and health
+plumbing are built and tested. `BrowserSessionTransport` is the primary transport
+rather than a fallback, because nz.ua returns Cloudflare's interactive challenge
+(`cf-mitigated: challenge`) to every HTTP client.
+
+**Blocked on discovery.** The endpoint paths cannot be observed from outside a
+logged-in browser, so `endpoints.ts` ships empty and is filled from a recording run
+on the user's own machine — see [NZ_INTEGRATION.md](NZ_INTEGRATION.md). Until then
+`capabilities()` is empty, so the UI reports that there is no timetable source
+rather than showing an empty timetable.
+
+Remaining once the endpoints are known: zod schemas, mappers, fixtures, and the real
+timetable panel.
 
 *Demo: the real bell schedule with rooms; kill the network and the widget still
 renders from cache with an amber dot.*
 
 ## M5 — Merge, Meet links, multi-profile
 
-Cross-source dedupe with a confirmation UI, Google Calendar `conferenceData` client,
-the Meet link resolver chain with per-subject overrides, parent/student profile
-switching, source badges and provenance in the detail panel. JSON cache → SQLite.
+**Done, apart from the UI surfaces.** Three-tier dedupe, the field-precedence table
+with provenance, the Google Calendar `conferenceData` client, and the Meet resolver
+chain are all built and tested.
+
+Remaining: the confirmation UI for weak duplicate suggestions, per-subject override
+editing in Settings, source badges in the detail panel, and the JSON cache → SQLite
+swap now that the schema has settled.
 
 *Demo: one homework item shown once carrying both source badges; clicking a lesson
 opens Meet.*
